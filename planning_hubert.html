@@ -130,8 +130,8 @@ header{display:flex;align-items:center;justify-content:space-between;
 .th-hf span{padding:1px 0}
 .th-hf span:first-child{border-right:1px dashed #dde5f0}
 /* today */
-.today-th .th-day{background:#fce7f3}
-.today-th .th-day,.today-th .th-day b{color:#be185d}
+.today-th .th-day{background:#ddd6fe}
+.today-th .th-day,.today-th .th-day b{color:#6d28d9}
 
 /* ── Cellules de données ── */
 .ptable td{
@@ -150,16 +150,25 @@ header{display:flex;align-items:center;justify-content:space-between;
 .ptable td.jf.wk{background:#ffcfcf!important}
 .ptable td.wks{border-left:2px solid var(--bord2)!important} /* séparateur Sam */
 .ptable td.dov{background:#dbeafe!important}
-.ptable td.today-col{background:#fdf2f8!important}
-.ptable td.today-col.wk{background:#fceef6!important}
+.ptable td.today-col{background:#ede9fe!important}
+.ptable td.today-col.wk{background:#e8e4fc!important}
 .ptable td.chtit{
   background:#2d4a8a;font-size:11px;font-weight:700;
   color:#fff;border-top:2px solid #1e3570;border-bottom:1px solid #1e3570;
-  padding:3px 6px;cursor:default;
+  padding:3px 22px 3px 6px;cursor:default;
   width:110px;max-width:110px;min-width:60px;
   white-space:normal;word-break:break-word;line-height:1.3;
   vertical-align:middle;text-align:left;
+  position:relative;
 }
+.chtit-hide{
+  position:absolute;top:2px;right:2px;
+  background:rgba(255,255,255,.15);border:none;color:rgba(255,255,255,.7);
+  cursor:pointer;font-size:10px;border-radius:3px;
+  width:16px;height:16px;display:flex;align-items:center;justify-content:center;
+  line-height:1;padding:0;
+}
+.chtit-hide:hover{background:rgba(220,38,38,.6);color:#fff;}
 /* Cellule vide pour aligner la ligne slots côté nom (lignes spéciales) */
 .ptable td.chtit-sp{
   background:var(--surf2);
@@ -172,7 +181,7 @@ header{display:flex;align-items:center;justify-content:space-between;
   border-left:1px solid #3d5a9a;
   vertical-align:middle;padding:3px 4px;
 }
-.ptable td.vtick-cell.today-vc{background:#3d2060!important}
+.ptable td.vtick-cell.today-vc{background:#4c1d95!important}
 /* Pastille vide = blanche, remplie = verte ou rouge */
 .vtick{
   width:18px;height:18px;border-radius:4px;
@@ -469,6 +478,7 @@ header{display:flex;align-items:center;justify-content:space-between;
       <button class="ibtn" id="bUndo" title="Annuler (Ctrl+Z)">↩ Annuler</button>
       <button class="ibtn" id="bAbs">📅 CFA/Congés/Abs.</button>
       <button class="ibtn" id="bClr">🗑 Vider sem.</button>
+      <button class="ibtn" id="bCopy">📋 Copier sem. préc.</button>
       <button class="ibtn" id="bExp">⬇ Export</button>
       <button class="ibtn" id="bPrint" title="Imprimer le planning">🖨 Imprimer</button>
       <span style="flex:1"></span>
@@ -724,29 +734,34 @@ function rCW(){
   CH=parseInt(getComputedStyle(document.documentElement).getPropertyValue('--CH'))||54;
 }
 // Jours fériés français — calculés dynamiquement
+function getEaster(year){
+  // Algorithme Anonymous Gregorian — précis pour 1583-4099
+  const a=year%19, b=Math.floor(year/100), c2=year%100;
+  const d=Math.floor(b/4), e=b%4;
+  const f=Math.floor((b+8)/25), g=Math.floor((b-f+1)/3);
+  const h=(19*a+b-d-g+15)%30;
+  const i=Math.floor(c2/4), k=c2%4;
+  const l=(32+2*e+2*i-h-k)%7;
+  const m=Math.floor((a+11*h+22*l)/451);
+  const month=Math.floor((h+l-7*m+114)/31)-1; // 0-based
+  const day=(h+l-7*m+114)%31+1;
+  return new Date(year,month,day);
+}
 function joursFeries(year){
-  // Pâques (algorithme de Meeus/Jones/Butcher)
-  const a=year%19,b=Math.floor(year/100),d=b-Math.floor(b/4);
-  const e=Math.floor((b-Math.floor((b+8)/25)+1)/3);
-  const f=Math.floor((19*a+b-d-e+15)/30);
-  const g=year%4,h=year%7;
-  const i=Math.floor((32+2*(b%4)+2*g-f-h%29)/7);
-  const paques=new Date(year,2,f+i-7*Math.floor((a+11*f+22*i)/451)+22);
-  const lp=new Date(paques);lp.setDate(paques.getDate()+1);  // lundi Pâques
-  const as=new Date(paques);as.setDate(paques.getDate()+39); // Ascension
-  const pent=new Date(paques);pent.setDate(paques.getDate()+50); // Lundi Pentecôte
+  const paques=getEaster(year);
+  const add=(d,n)=>{ const x=new Date(d); x.setDate(d.getDate()+n); return x; };
   const feries=[
-    new Date(year,0,1),   // 1er jan
-    lp,                    // lundi Pâques
-    new Date(year,4,1),   // 1er mai
-    new Date(year,4,8),   // 8 mai
-    as,                    // Ascension
-    pent,                  // Pentecôte
-    new Date(year,6,14),  // 14 juillet
-    new Date(year,7,15),  // 15 août
-    new Date(year,10,1),  // Toussaint
-    new Date(year,10,11), // 11 novembre
-    new Date(year,11,25), // Noël
+    new Date(year,0,1),    // 1er janvier
+    add(paques,1),          // Lundi de Pâques
+    new Date(year,4,1),    // Fête du Travail
+    new Date(year,4,8),    // Victoire 1945
+    add(paques,39),         // Ascension (jeudi)
+    add(paques,50),         // Lundi de Pentecôte
+    new Date(year,6,14),   // Fête Nationale
+    new Date(year,7,15),   // Assomption
+    new Date(year,10,1),   // Toussaint
+    new Date(year,10,11),  // Armistice
+    new Date(year,11,25),  // Noël
   ];
   return feries.map(d=>d.toDateString());
 }
@@ -775,6 +790,7 @@ let G={
   ],
   chantiers:['Manoir des Creuniers','Anider Redina','Gaïa Thémis','Le Havre en Scène','Jabri','SCI ARO'],
   chantierArchive:[], // base des chantiers réalisés/archivés
+  chantiersMeta:{}, // {ch:{deb,fin}} dates actives
   hiddenChantiers:{}, // {wkey:[ch,...]} chantiers masqués pour une semaine
   chantiersDone:[], // chantiers terminés (conservés pour historique)
   planning:{},visits:{},absences:[],commandes:[],
@@ -855,6 +871,23 @@ function isChHiddenThisWeek(ch){
   // Terminé → visible seulement si a des blocs planifiés cette semaine
   if((G.chantiersDone||[]).includes(ch)){
     return blks(ch).length===0;
+  }
+  // Métadonnées : visible seulement dans la plage deb-fin
+  const meta=(G.chantiersMeta||{})[ch];
+  if(meta&&meta.deb&&meta.fin){
+    const dd=wkDates(G.off);
+    const wEnd=new Date(dd[6]);wEnd.setHours(23,59,59);
+    const wStart=new Date(dd[0]);wStart.setHours(0,0,0);
+    const mDeb=new Date(meta.deb+'T00:00:00');
+    const mFin=new Date(meta.fin+'T23:59:59');
+    if(mFin<wStart||mDeb>wEnd)return true;
+    return false;
+  }
+  // Pas de métadonnées : visible si a des blocs cette semaine
+  // OU si on est sur la semaine en cours ou une semaine passée
+  if(G.off>0){
+    // Semaine future : masquer si pas de blocs planifiés
+    if(blks(ch).length===0)return true;
   }
   return false;
 }
@@ -1142,6 +1175,12 @@ function addChRows(tb,ch,dd,isSp,absType='',spLbl=''){
     tdN.className='chtit';
     tdN.rowSpan=2;
     tdN.textContent=ch;
+    // Bouton ✕ masquer dans la cellule nom
+    const btnH=document.createElement('button');
+    btnH.className='chtit-hide';btnH.textContent='✕';
+    btnH.title='Masquer cette semaine';
+    btnH.addEventListener('click',e=>{e.stopPropagation();hideChThisWeek(ch);});
+    tdN.appendChild(btnH);
     trT.appendChild(tdN);
     // 7 td(colspan=2) pastilles — une par jour, alignées sur les colonnes
     dd.forEach((date,di)=>{
@@ -1163,15 +1202,7 @@ function addChRows(tb,ch,dd,isSp,absType='',spLbl=''){
       tdV.appendChild(tk);
       trT.appendChild(tdV);
     });
-    // Bouton ✕ masquer ce chantier cette semaine (après dim AM)
-    const tdHide=document.createElement('td');
-    tdHide.className='ch-hide-cell';
-    const btnHide=document.createElement('button');
-    btnHide.className='ch-hide-btn';btnHide.textContent='✕';
-    btnHide.title='Masquer ce chantier cette semaine';
-    btnHide.addEventListener('click',e=>{e.stopPropagation();hideChThisWeek(ch);});
-    tdHide.appendChild(btnHide);
-    trT.appendChild(tdHide);
+    // bouton masquer déplacé dans tdN
   }
   tb.appendChild(trT);
   // Slots — cellules vides (les tags sont dans #ov)
@@ -1685,12 +1716,29 @@ document.getElementById('mChOk').addEventListener('click',()=>{
   if(G.chantiers.includes(nom)){toast('Chantier déjà existant','err');return;}
   pushHist();
   G.chantiers.push(nom);
-  // Si durée fournie, ajouter en commande active
   const durN=document.getElementById('chDurN').value;
   const durU=document.getElementById('chDurU').value;
-  const fin=document.getElementById('chFin').value;
-  if(durN||fin){
-    G.commandes.push({id:'c'+Date.now(),nom,deb:'',fin,durN,durU,con:'',not:'',st:'active'});
+  const finVal=document.getElementById('chFin').value;
+  // Calculer la date de fin selon durée ou date de fin saisie
+  const debSem=wkDates(G.off)[0]; // début de la semaine en cours
+  let finDate=null;
+  if(finVal){ finDate=new Date(finVal+'T12:00:00'); }
+  else if(durN){
+    const n=parseInt(durN);
+    finDate=new Date(debSem);
+    if(durU==='dj') finDate.setDate(finDate.getDate()+Math.ceil(n/2));
+    else if(durU==='j') finDate.setDate(finDate.getDate()+n);
+    else if(durU==='sem') finDate.setDate(finDate.getDate()+n*7);
+    else if(durU==='mois') finDate.setMonth(finDate.getMonth()+n);
+  } else {
+    // Pas de durée → seulement la semaine en cours
+    finDate=new Date(wkDates(G.off)[6]);
+  }
+  // Stocker les métadonnées
+  if(!G.chantiersMeta)G.chantiersMeta={};
+  G.chantiersMeta[nom]={deb:isoDate(debSem),fin:isoDate(finDate)};
+  if(durN||finVal){
+    G.commandes.push({id:'c'+Date.now(),nom,deb:isoDate(debSem),fin:isoDate(finDate),durN,durU,con:'',not:'',st:'active'});
   }
   save();render();
   document.getElementById('mCh').classList.add('off');
@@ -1755,6 +1803,39 @@ document.getElementById('bNext').addEventListener('click',()=>{G.off++;save();re
 document.getElementById('bAddC').addEventListener('click',()=>openChModal());
 document.getElementById('bAddCmd').addEventListener('click',()=>openCmdModal(null));
 document.getElementById('bAbs').addEventListener('click',openAbsModal);
+document.getElementById('bCopy').addEventListener('click',()=>{
+  const prevKey=wkey(G.off-1);
+  const curKey=wkey(G.off);
+  const prevData=G.planning[prevKey];
+  if(!prevData||Object.keys(prevData).length===0){
+    toast('Aucune donnée la semaine précédente','err');return;
+  }
+  if(!confirm('Copier le planning de la semaine précédente sur cette semaine ?\n(Remplace le planning actuel)\nLes salariés en CFA/congés/absence seront retirés.'))return;
+  pushHist();
+  const curDd=wkDates(G.off); // jours de la semaine cible
+  G.planning[curKey]={};
+  for(const ch in prevData){
+    // Ignorer les lignes spéciales (_cfa/_cp/_abs) — gérées par syncAbsencesToBlks
+    if(['_cfa','_cp','_abs'].includes(ch)) continue;
+    const blksFiltered=prevData[ch]
+      .filter(b=>{
+        // Vérifier si le salarié est absent ce jour dans la nouvelle semaine
+        const di=sDay(b.s); // jour 0-6
+        if(di<0||di>6)return true;
+        const date=curDd[di];
+        const st=statut(b.w,date);
+        return !st; // garder seulement si pas absent
+      })
+      .map(b=>({
+        ...b,
+        id:'b'+Date.now()+Math.random().toString(36).slice(2,5)
+      }));
+    if(blksFiltered.length>0)
+      G.planning[curKey][ch]=blksFiltered;
+  }
+  // Visites non copiées — repartent à blanc
+  save();render();toast('Semaine copiée — absences retirées ✓','ok');
+});
 document.getElementById('bClr').addEventListener('click',()=>{if(confirm('Vider le planning de cette semaine ?')){pushHist();delete G.planning[wkey()];delete G.visits[wkey()];save();render();toast('Planning vidé','ok');}});
 document.getElementById('bCfg').addEventListener('click',()=>document.getElementById('cfgpan').classList.toggle('on'));
 document.getElementById('bCfgSave').addEventListener('click',()=>{
@@ -1891,6 +1972,7 @@ load();
 if(!G.absences)G.absences=[];
 if(!G.commandes)G.commandes=[];
 if(!G.chantierArchive)G.chantierArchive=[];
+if(!G.chantiersMeta)G.chantiersMeta={};
 if(!G.hiddenChantiers)G.hiddenChantiers={};
 if(!G.chantiersDone)G.chantiersDone=[];
 if(!G.cfg)G.cfg={sid:'',key:'',oa:'',logo:''};
