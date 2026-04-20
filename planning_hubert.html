@@ -72,7 +72,7 @@ header{display:flex;align-items:center;justify-content:space-between;
   padding:6px 8px;display:flex;align-items:center;justify-content:space-between;gap:5px;
   transition:border-color .15s,box-shadow .15s}
 .ci:hover{border-color:var(--acc);box-shadow:0 1px 6px rgba(79,116,227,.15)}
-.ci span{font-size:11px;font-weight:500;flex:1;cursor:grab}
+.ci span{font-size:11px;font-weight:500;flex:1;cursor:pointer}
 .ci .cdel{background:none;border:none;color:var(--dim);cursor:pointer;font-size:11px;opacity:0}
 .ci:hover .cdel{opacity:1}
 .ci .cadd{background:none;border:1px solid var(--acc);color:var(--acc);cursor:pointer;
@@ -792,6 +792,7 @@ let G={
   chantierArchive:[], // base des chantiers réalisés/archivés
   chantiersMeta:{}, // {ch:{deb,fin}} dates actives
   hiddenChantiers:{}, // {wkey:[ch,...]} chantiers masqués pour une semaine
+  shownChantiers:{},  // {wkey:[ch,...]} chantiers explicitement ajoutés
   chantiersDone:[], // chantiers terminés (conservés pour historique)
   planning:{},visits:{},absences:[],commandes:[],
   cfg:{sid:'',key:'',oa:'',logo:''},
@@ -859,6 +860,7 @@ function workerVisibleThisWeek(w){
 
 function hideChThisWeek(ch){
   if(!G.hiddenChantiers)G.hiddenChantiers={};
+if(!G.shownChantiers)G.shownChantiers={};
 if(!G.chantiersDone)G.chantiersDone=[];
   const k=wkey();
   if(!G.hiddenChantiers[k])G.hiddenChantiers[k]=[];
@@ -866,8 +868,11 @@ if(!G.chantiersDone)G.chantiersDone=[];
   save();render();
 }
 function isChHiddenThisWeek(ch){
-  // Masqué explicitement cette semaine
-  if(((G.hiddenChantiers||{})[wkey()]||[]).includes(ch))return true;
+  const wk=wkey();
+  // Masqué explicitement → toujours caché
+  if(((G.hiddenChantiers||{})[wk]||[]).includes(ch))return true;
+  // Ajouté explicitement → toujours visible
+  if(((G.shownChantiers||{})[wk]||[]).includes(ch))return false;
   // Terminé → visible seulement si a des blocs planifiés cette semaine
   if((G.chantiersDone||[]).includes(ch)){
     return blks(ch).length===0;
@@ -883,13 +888,20 @@ function isChHiddenThisWeek(ch){
     if(mFin<wStart||mDeb>wEnd)return true;
     return false;
   }
-  // Pas de métadonnées : visible si a des blocs cette semaine
-  // OU si on est sur la semaine en cours ou une semaine passée
-  if(G.off>0){
-    // Semaine future : masquer si pas de blocs planifiés
-    if(blks(ch).length===0)return true;
-  }
+  // Pas de métadonnées : visible si blocs planifiés ou semaine passée/courante
+  if(G.off>0 && blks(ch).length===0)return true;
   return false;
+}
+
+function addChToWeek(ch){
+  // Ajouter un chantier explicitement à la semaine en cours
+  if(!G.shownChantiers)G.shownChantiers={};
+  const wk=wkey();
+  if(!G.shownChantiers[wk])G.shownChantiers[wk]=[];
+  if(!G.shownChantiers[wk].includes(ch))G.shownChantiers[wk].push(ch);
+  // Retirer de hiddenChantiers si présent
+  if(G.hiddenChantiers&&G.hiddenChantiers[wk])
+    G.hiddenChantiers[wk]=G.hiddenChantiers[wk].filter(x=>x!==ch);
 }
 
 function addBlk(ch,worker,start,span=1){
@@ -1047,6 +1059,7 @@ function renderSide(){
   actifs.forEach(ch=>{
     const d=document.createElement('div');d.className='ci';
     const sp=document.createElement('span');sp.textContent=ch;sp.style.flex='1';
+    d.title='Double-clic pour ajouter à cette semaine';
     d.appendChild(sp);
     const del=document.createElement('button');del.className='cdel';del.textContent='✕';
     del.title="Marquer comme terminé";
@@ -1060,7 +1073,13 @@ Il reste visible sur les semaines déjà planifiées.`)){
       }
     });
     d.appendChild(del);
-    setupCIDrag(d,ch);
+    // Double-clic = ajouter ce chantier à la semaine en cours
+    d.addEventListener('dblclick',e=>{
+      if(e.target.closest('.cdel'))return;
+      pushHist();
+      addChToWeek(ch);
+      save();render();toast(`"${ch}" ajouté à la semaine`,'ok');
+    });
     l.appendChild(d);
   });
 
@@ -1073,6 +1092,7 @@ Il reste visible sur les semaines déjà planifiées.`)){
     termines.forEach(ch=>{
       const d=document.createElement('div');d.className='ci done';
       const sp=document.createElement('span');sp.textContent=ch;sp.style.flex='1';
+    d.title='Double-clic pour ajouter à cette semaine';
       d.appendChild(sp);
       // Réactiver
       const btn=document.createElement('button');
@@ -1084,6 +1104,13 @@ Il reste visible sur les semaines déjà planifiées.`)){
         e.stopPropagation();
         G.chantiersDone=(G.chantiersDone||[]).filter(x=>x!==ch);
         save();render();
+      });
+      // Double-clic sur terminé = réactiver et ajouter à la semaine
+      d.addEventListener('dblclick',e=>{
+        if(e.target.closest('button'))return;
+        G.chantiersDone=(G.chantiersDone||[]).filter(x=>x!==ch);
+        addChToWeek(ch);
+        save();render();toast(`"${ch}" réactivé et ajouté`,'ok');
       });
       d.appendChild(btn);
       l.appendChild(d);
@@ -1516,26 +1543,6 @@ function setupTagResize(el,ch,bid){
 const DG={active:false,w:'',col:'',type:'worker',chantier:''};
 const ghst=document.getElementById('dghst');
 
-function setupCIDrag(el,ch){
-  // Drag d'un chantier depuis la sidebar
-  function start(cx,cy){
-    DG.active=true;DG.type='chantier';DG.chantier=ch;DG.w='';DG.col='';
-    ghst.className='dghst';ghst.style.background='#2d4a8a';ghst.style.color='#fff';
-    ghst.textContent='📁 '+ch;ghst.style.display='block';
-    ghst.style.left=cx+'px';ghst.style.top=cy+'px';
-  }
-  el.addEventListener('mousedown',e=>{
-    if(e.target.closest('.cdel'))return;
-    if(e.button!==0)return;e.preventDefault();start(e.clientX,e.clientY);
-    document.addEventListener('mousemove',pdMM);document.addEventListener('mouseup',pdMU);
-  });
-  el.addEventListener('touchstart',e=>{
-    if(e.target.closest('.cdel'))return;
-    if(e.touches.length!==1)return;e.preventDefault();start(e.touches[0].clientX,e.touches[0].clientY);
-    document.addEventListener('touchmove',pdTM,{passive:false});document.addEventListener('touchend',pdTE);
-  },{passive:false});
-}
-
 function setupPDrag(el,wn,col){
   function start(cx,cy){DG.active=true;DG.type='worker';DG.w=wn;DG.col=col;
     ghst.className=`dghst ${col}`;ghst.textContent=wn;ghst.style.display='block';
@@ -1556,18 +1563,6 @@ function hlCell(x,y){
 }
 function dropOnCell(x,y){
   if(!DG.active)return;
-  if(DG.type==='chantier'){
-    // Drop d'un chantier : le rendre visible cette semaine
-    const ch=DG.chantier;
-    if(!G.chantiers.includes(ch)){G.chantiers.push(ch);}
-    // Retirer de hiddenChantiers si masqué
-    if(G.hiddenChantiers&&G.hiddenChantiers[wkey()])
-      G.hiddenChantiers[wkey()]=G.hiddenChantiers[wkey()].filter(x=>x!==ch);
-    // Retirer de chantiersDone si terminé
-    if(G.chantiersDone)G.chantiersDone=G.chantiersDone.filter(x=>x!==ch);
-    save();render();toast(`"${ch}" ajouté à la semaine`,'ok');
-    return;
-  }
   const td=document.elementFromPoint(x,y)?.closest('[data-s]');
   if(!td)return;
   const ch=td.dataset.ch,slotI=+td.dataset.s,day=+td.dataset.d;
@@ -1974,6 +1969,7 @@ if(!G.commandes)G.commandes=[];
 if(!G.chantierArchive)G.chantierArchive=[];
 if(!G.chantiersMeta)G.chantiersMeta={};
 if(!G.hiddenChantiers)G.hiddenChantiers={};
+if(!G.shownChantiers)G.shownChantiers={};
 if(!G.chantiersDone)G.chantiersDone=[];
 if(!G.cfg)G.cfg={sid:'',key:'',oa:'',logo:''};
 // Migration anciens formats
