@@ -417,6 +417,9 @@ header{display:flex;align-items:center;justify-content:space-between;
   .vtick.has-v-x{ background:#fecaca!important;border-color:#dc2626!important; }
 }
 </style>
+<!-- Firebase SDK compat (scripts classiques) -->
+<script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-database-compat.js"></script>
 </head>
 <body>
 
@@ -615,16 +618,15 @@ header{display:flex;align-items:center;justify-content:space-between;
 <div class="toast" id="toast"></div>
 <div class="dghst" id="dghst"></div>
 
-<!-- Firebase SDK -->
-<script type="module">
-// ═══════════════════════════════════════════════════════
-// FIREBASE REALTIME DATABASE
-// ═══════════════════════════════════════════════════════
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
-import { getDatabase, ref, set, onValue, serverTimestamp }
-  from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
 
-const firebaseConfig = {
+
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════════════
+// FIREBASE REALTIME DATABASE (compat mode)
+// ═══════════════════════════════════════════════════════
+const _fbConfig = {
   apiKey: "AIzaSyDzAMl9J28UNUb3f7nD5x3ePsejUHeW7BE",
   authDomain: "planning-hubert.firebaseapp.com",
   databaseURL: "https://planning-hubert-default-rtdb.europe-west1.firebasedatabase.app",
@@ -634,59 +636,79 @@ const firebaseConfig = {
   appId: "1:114322590139:web:c801813e40b85bbe301c9e"
 };
 
-const fbApp = initializeApp(firebaseConfig);
-const db = getDatabase(fbApp);
-const dataRef = ref(db, 'hub6');
-
-// État sync
-let _fbReady = false;
-let _ignoreNext = false; // évite la boucle locale→firebase→locale
+let _fbDb = null;
+let _fbRef = null;
+let _isPushing = false;
+let _fbDebounceT = null;
 
 function setSyncDot(state){
-  const dot = document.getElementById('sdot');
-  const btn = document.getElementById('bSync');
-  if(!dot) return;
-  if(state === 'ok'){
-    dot.style.background = '#16a34a';
-    if(btn) btn.title = 'Synchronisé ✓';
-  } else if(state === 'sync'){
-    dot.style.background = '#f59e0b';
-    if(btn) btn.title = 'Synchronisation…';
-  } else {
-    dot.style.background = '#dc2626';
-    if(btn) btn.title = 'Hors ligne';
-  }
+  const dot=document.getElementById('sdot');
+  if(!dot)return;
+  dot.style.background = state==='ok'?'#16a34a':state==='sync'?'#f59e0b':'#dc2626';
 }
 
-// Écouter les changements Firebase en temps réel
-onValue(dataRef, (snapshot) => {
-  if(_ignoreNext){ _ignoreNext = false; return; }
-  const remote = snapshot.val();
-  if(!remote) return;
-  // Fusionner les données distantes dans G
-  // (ne pas écraser si on vient de sauvegarder)
-  if(typeof window._G_merge === 'function') window._G_merge(remote);
-  setSyncDot('ok');
-  _fbReady = true;
-}, (error) => {
-  setSyncDot('err');
-  console.warn('Firebase:', error);
-});
+// Encoder/décoder les clés pour Firebase (interdit: . # $ / [ ] )
+function fbEncodeKey(k){ return k.replace(/\./g,'__DOT__').replace(/#/g,'__HASH__').replace(/\$/g,'__DOLLAR__').replace(/\//g,'__SLASH__').replace(/\[/g,'__LBR__').replace(/]/g,'__RBR__'); }
+function fbDecodeKey(k){ return k.replace(/__DOT__/g,'.').replace(/__HASH__/g,'#').replace(/__DOLLAR__/g,'$').replace(/__SLASH__/g,'/').replace(/__LBR__/g,'[').replace(/__RBR__/g,']'); }
+function fbEncodeObj(obj){
+  if(obj===null||typeof obj!=='object')return obj;
+  if(Array.isArray(obj))return obj.map(fbEncodeObj);
+  const r={};
+  for(const k in obj) r[fbEncodeKey(k)]=fbEncodeObj(obj[k]);
+  return r;
+}
+function fbDecodeObj(obj){
+  if(obj===null||typeof obj!=='object')return obj;
+  if(Array.isArray(obj))return obj.map(fbDecodeObj);
+  const r={};
+  for(const k in obj) r[fbDecodeKey(k)]=fbDecodeObj(obj[k]);
+  return r;
+}
 
-// Exposer la fonction push pour le code principal
-window._fbPush = function(data){
+function fbInit(){
+  try{
+    console.log('[FB] init start, firebase available:', typeof firebase !== "undefined");
+    if(typeof firebase === "undefined"){ setSyncDot('err'); console.error('[FB] firebase not loaded!'); return; }
+    if(!firebase.apps.length) firebase.initializeApp(_fbConfig);
+    _fbDb = firebase.database();
+    _fbRef = _fbDb.ref('hub6');
+    console.log('[FB] ref created:', _fbRef.toString());
+    _fbRef.on('value', snap=>{
+      console.log('[FB] onValue received, isPushing:', _isPushing);
+      if(_isPushing) return;
+      const raw = snap.val();
+      if(!raw){ setSyncDot('ok'); return; }
+      const remote = fbDecodeObj(raw);
+      try{
+        Object.assign(G, remote);
+        localStorage.setItem('hub6', JSON.stringify(G));
+        render();
+      }catch(e){ console.error('[FB] merge error:', e); }
+      setSyncDot('ok');
+    }, e=>{ setSyncDot('err'); console.error('[FB] read error:',e); });
+    setSyncDot('ok');
+    console.log('[FB] init OK');
+  }catch(e){ setSyncDot('err'); console.error('[FB] init error:',e); }
+}
+
+function fbPush(data){
+  if(!_fbRef){ setSyncDot('err'); return; }
   setSyncDot('sync');
-  _ignoreNext = true;
-  set(dataRef, data)
-    .then(() => setSyncDot('ok'))
-    .catch(e => { setSyncDot('err'); console.warn(e); _ignoreNext = false; });
-};
+  _isPushing = true;
+  // Utiliser callback onComplete au lieu de .then() — plus fiable
+  const encoded=fbEncodeObj(data);
+  _fbRef.set(encoded, (error)=>{
+    if(error){
+      console.error('[FB] write error:', error);
+      setSyncDot('err');
+    } else {
+      console.log('[FB] write OK');
+      setSyncDot('ok');
+    }
+    setTimeout(()=>{ _isPushing=false; }, 500);
+  });
+}
 
-window._fbReady = () => _fbReady;
-</script>
-
-<script>
-'use strict';
 // ═══════════════════════════════════════════════════════
 // CONSTANTES
 // ═══════════════════════════════════════════════════════
@@ -760,21 +782,15 @@ let G={
 };
 const save=()=>{
   try{localStorage.setItem('hub6',JSON.stringify(G));}catch(e){}
-  // Push vers Firebase si disponible
-  if(typeof window._fbPush === 'function'){
-    // Nettoyer G avant envoi (supprimer les fonctions si présentes)
-    try{ window._fbPush(JSON.parse(JSON.stringify(G))); }catch(e){}
-  }
+  // Debounce Firebase 800ms
+  clearTimeout(_fbDebounceT);
+  _fbDebounceT=setTimeout(()=>{
+    console.log('[FB] debounce fired, _fbRef:', !!_fbRef);
+    fbPush(JSON.parse(JSON.stringify(G)));
+  },800);
 };
 const load=()=>{try{const s=localStorage.getItem('hub6');if(s)Object.assign(G,JSON.parse(s));}catch(e){}};
-// Fusion données Firebase → G (appelée par onValue)
-window._G_merge=(remote)=>{
-  try{
-    Object.assign(G, remote);
-    localStorage.setItem('hub6',JSON.stringify(G));
-    render();
-  }catch(e){console.warn('merge',e);}
-};
+// merge géré directement dans fbInit
 
 // ═══════════════════════════════════════════════════════
 // HELPERS SEMAINE
@@ -1790,12 +1806,8 @@ document.getElementById('bDelW').addEventListener('click',()=>{
   G.workers=G.workers.filter(w=>w.n!==n);save();render();toast(`${n} supprimé`,'ok');
 });
 document.getElementById('bSync').addEventListener('click',()=>{
-  if(typeof window._fbPush==='function'){
-    window._fbPush(JSON.parse(JSON.stringify(G)));
-    toast('Planning synchronisé ✓','ok');
-  } else {
-    toast('Firebase non connecté','err');
-  }
+  try{ fbPush(JSON.parse(JSON.stringify(G))); toast('Planning synchronisé ✓','ok'); }
+  catch(e){ toast('Erreur sync','err'); }
 });
 document.getElementById('bExp').addEventListener('click',()=>{
   const dd=wkDates(G.off),wn=isoW(dd[0]);
@@ -1910,6 +1922,7 @@ document.getElementById('cgOA').value=G.cfg.oa||'';
 applyLogo();
 rCW();
 render();
+fbInit(); // Initialiser Firebase
 </script>
 </body>
 </html>
