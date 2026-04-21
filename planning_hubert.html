@@ -367,10 +367,33 @@ header{display:flex;align-items:center;justify-content:space-between;
   padding:3px 9px;font-size:11px;font-weight:700;color:#fff;opacity:.9;
   transform:translate(-50%,-50%) rotate(2deg);box-shadow:0 4px 14px rgba(0,0,0,.25);display:none}
 
-@media(max-width:640px){
-  .sidebar{width:0}.sidebar.mob{width:195px;position:absolute;z-index:40;height:calc(100vh - 50px)}
-  .pp{width:110px}
-  :root{--CW:70px}
+@media(max-width:768px){
+  /* Sidebar masquée par défaut sur mobile */
+  .sidebar{width:0;overflow:hidden}
+  .sidebar.mob{width:180px;position:absolute;z-index:40;height:calc(100vh - 50px)}
+  /* Panel équipe : icônes seulement */
+  .pp{width:52px}
+  .pp .wlist{padding:3px}
+  .pp .pp-head span:not(.bdg){display:none}
+  .wcard{padding:4px 3px;gap:2px;justify-content:center}
+  .wname{display:none}
+  .wcnt{font-size:9px;padding:1px 3px}
+  .wdot{width:10px;height:10px}
+  .wsbadge{display:none}
+  .st-div,.tmp-div{display:none}
+  /* Grille : colonnes plus étroites */
+  :root{--CW:52px;--CH:24px}
+  /* Colonne nom plus étroite */
+  .ptable td.chtit,.ptable td.chtit-sub,.ptable td.chtit-sp{
+    width:70px!important;max-width:70px!important;min-width:40px!important;
+    font-size:9px;padding:2px 4px;
+  }
+  /* Toolbar : compacte */
+  .tb{gap:3px;padding:3px 5px}
+  .ibtn{padding:4px 6px;font-size:10px}
+  /* Header */
+  header{padding:5px 8px;height:44px}
+  .wlbl{font-size:11px;min-width:90px}
 }
 
 /* ══════════════════ IMPRESSION ══════════════════ */
@@ -1036,6 +1059,9 @@ function renderHead(){
     t.innerHTML=`<div class="th-day"><b>${JOURS[i]}${jfLabel}</b>${fD(d)}</div>`;
     r1.appendChild(t);
   });
+  // th vide pour colonne bouton masquer
+  const thBtn1=document.createElement('th');thBtn1.style.background='var(--surf2)';thBtn1.style.width='22px';
+  r1.appendChild(thBtn1);
   th.appendChild(r1);
   const r2=document.createElement('tr');
   const thNom2=document.createElement('th');thNom2.style.background='var(--surf2)';thNom2.style.width='110px';
@@ -1046,6 +1072,8 @@ function renderHead(){
     t.innerHTML=`<div class="th-hf"><span>Mat.</span><span>A-M</span></div>`;
     r2.appendChild(t);
   });
+  const thBtn2=document.createElement('th');thBtn2.style.background='var(--surf2)';
+  r2.appendChild(thBtn2);
   th.appendChild(r2);
 }
 
