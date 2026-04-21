@@ -1693,7 +1693,10 @@ function openChModal(){
   document.getElementById('chDurN').value='';
   document.getElementById('chDurU').value='sem';
   // Remplir le select archive avec les chantiers archivés non actifs
-  const arch=(G.chantierArchive||[]).filter(x=>!G.chantiers.includes(x));
+  // Archive = chantierArchive + chantiersDone (terminés), en excluant les actifs
+  const arch=[...(G.chantierArchive||[]),...(G.chantiersDone||[])]
+    .filter((x,i,a)=>a.indexOf(x)===i) // dédupliquer
+    .filter(x=>!G.chantiers.includes(x));
   const wrap=document.getElementById('chArchiveWrap');
   const sel=document.getElementById('chArchiveSel');
   sel.innerHTML='<option value="">— Nouveau chantier —</option>';
@@ -1711,6 +1714,10 @@ document.getElementById('mChOk').addEventListener('click',()=>{
   if(G.chantiers.includes(nom)){toast('Chantier déjà existant','err');return;}
   pushHist();
   G.chantiers.push(nom);
+  // Si ce chantier était terminé, le retirer de chantiersDone
+  if(G.chantiersDone)G.chantiersDone=G.chantiersDone.filter(x=>x!==nom);
+  // Ajouter à la semaine en cours
+  addChToWeek(nom);
   const durN=document.getElementById('chDurN').value;
   const durU=document.getElementById('chDurU').value;
   const finVal=document.getElementById('chFin').value;
@@ -1799,7 +1806,9 @@ document.getElementById('bAddC').addEventListener('click',()=>openChModal());
 document.getElementById('bAddCmd').addEventListener('click',()=>openCmdModal(null));
 document.getElementById('bAbs').addEventListener('click',openAbsModal);
 document.getElementById('bCopy').addEventListener('click',()=>{
-  const prevKey=wkey(G.off-1);
+  // Toujours copier depuis S-1 (semaine calendaire précédente)
+  // vers la semaine actuellement affichée
+  const prevKey=wkey(G.off-1);  // semaine précédant celle affichée
   const curKey=wkey(G.off);
   const prevData=G.planning[prevKey];
   if(!prevData||Object.keys(prevData).length===0){
