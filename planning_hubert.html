@@ -1052,8 +1052,8 @@ function renderHead(){
 function renderSide(){
   const l=document.getElementById('listC');l.innerHTML='';
   const done=G.chantiersDone||[];
-  const actifs=G.chantiers.filter(ch=>!done.includes(ch));
-  const termines=G.chantiers.filter(ch=>done.includes(ch));
+  const actifs=G.chantiers.filter(ch=>!done.includes(ch)); // terminés retirés de G.chantiers
+  const termines=[];
 
   // ── Chantiers actifs : nom + ✕ pour marquer terminé ──
   actifs.forEach(ch=>{
@@ -1083,56 +1083,36 @@ Il reste visible sur les semaines déjà planifiées.`)){
     l.appendChild(d);
   });
 
-  // ── Séparateur + chantiers terminés ──────────────
-  if(termines.length){
-    const sep=document.createElement('div');
-    sep.style.cssText='font-size:9px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.8px;padding:8px 4px 3px;display:flex;align-items:center;gap:5px';
-    sep.innerHTML='Terminés <span style="flex:1;height:1px;background:var(--bord);display:inline-block;vertical-align:middle"></span>';
-    l.appendChild(sep);
+  // Chantiers terminés masqués — accessibles via + (menu déroulant)
+  if(false&&termines.length){
     termines.forEach(ch=>{
-      const d=document.createElement('div');d.className='ci done';
-      const sp=document.createElement('span');sp.textContent=ch;sp.style.flex='1';
-    d.title='Double-clic pour ajouter à cette semaine';
-      d.appendChild(sp);
-      // Réactiver
-      const btn=document.createElement('button');
-      btn.style.cssText='background:none;border:1px solid var(--acc);color:var(--acc);cursor:pointer;font-size:9px;font-weight:700;border-radius:4px;padding:1px 5px;flex-shrink:0;opacity:0;font-family:inherit';
-      btn.textContent='↩ Réactiver';
-      d.addEventListener('mouseenter',()=>btn.style.opacity='1');
-      d.addEventListener('mouseleave',()=>btn.style.opacity='0');
-      btn.addEventListener('click',e=>{
-        e.stopPropagation();
-        G.chantiersDone=(G.chantiersDone||[]).filter(x=>x!==ch);
-        save();render();
-      });
-      // Double-clic sur terminé = réactiver et ajouter à la semaine
-      d.addEventListener('dblclick',e=>{
-        if(e.target.closest('button'))return;
-        G.chantiersDone=(G.chantiersDone||[]).filter(x=>x!==ch);
-        addChToWeek(ch);
-        save();render();toast(`"${ch}" réactivé et ajouté`,'ok');
-      });
-      d.appendChild(btn);
-      l.appendChild(d);
-    });
+      const d=null;if(false){
+    }});
   }
 }
 
 function renderWPanel(){
   const l=document.getElementById('wlist');l.innerHTML='';
-  const cnt={};G.workers.forEach(w=>cnt[w.n]=0);
-  [...G.chantiers,'_cfa','_cp','_abs'].forEach(c=>blks(c).forEach(b=>{if(cnt[b.w]!==undefined)cnt[b.w]+=b.sp;}));
+  // Compter le nombre de jours distincts où le salarié est présent (au moins 1 demi-journée)
+  const cnt={};G.workers.forEach(w=>cnt[w.n]=new Set());
+  [...G.chantiers].forEach(ch=>blks(ch).forEach(b=>{ // CFA/CP/ABS exclus du comptage
+    if(cnt[b.w]===undefined)return;
+    // Chaque slot du bloc = 1 demi-journée ; on récupère le jour (0-6)
+    for(let s=b.s;s<b.s+b.sp;s++) cnt[b.w].add(Math.floor(s/2));
+  }));
+  // Convertir les Sets en nombres
+  const cntN={};G.workers.forEach(w=>cntN[w.n]=cnt[w.n]?cnt[w.n].size:0);
   const sal=G.workers.filter(w=>w.t==='w');
   const sts=G.workers.filter(w=>w.t==='s');
   const tmps=G.workers.filter(w=>w.t==='tmp'&&workerVisibleThisWeek(w));
-  sal.forEach(w=>l.appendChild(mkWCard(w,cnt[w.n]||0)));
+  sal.forEach(w=>l.appendChild(mkWCard(w,cntN[w.n]||0)));
   if(sts.length){
     const dv=document.createElement('div');dv.className='st-div';dv.textContent='S/traitants';l.appendChild(dv);
-    sts.forEach(w=>l.appendChild(mkWCard(w,cnt[w.n]||0)));
+    sts.forEach(w=>l.appendChild(mkWCard(w,cntN[w.n]||0)));
   }
   if(tmps.length){
     const dv=document.createElement('div');dv.className='tmp-div';dv.textContent='Intérim/Stag.';l.appendChild(dv);
-    tmps.forEach(w=>l.appendChild(mkWCard(w,cnt[w.n]||0)));
+    tmps.forEach(w=>l.appendChild(mkWCard(w,cntN[w.n]||0)));
   }
   const total=sal.length+sts.length+tmps.length;
   document.getElementById('wbadge').textContent=total;
