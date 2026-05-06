@@ -709,7 +709,13 @@ function fbInit(){
       if(!raw){ setSyncDot('ok'); return; }
       const remote = fbDecodeObj(raw);
       try{
+        // Conserver les workers locaux si Firebase n'en a pas
+        const localWorkers = G.workers && G.workers.length ? G.workers : null;
         Object.assign(G, remote);
+        // Restaurer les workers si écrasés par une version vide
+        if(localWorkers && (!G.workers || !G.workers.length)){
+          G.workers = localWorkers;
+        }
         localStorage.setItem('hub6', JSON.stringify(G));
         render();
       }catch(e){ console.error('[FB] merge error:', e); }
