@@ -903,6 +903,14 @@ function render(){
 
 function renderHeader(){
   const dd=wkDates();
+  // Sur mobile : recalculer CW depuis la largeur réelle de la grille
+  if(window.innerWidth<=768){
+    const gw=document.getElementById('gw');
+    const availW=(gw?gw.clientWidth:window.innerWidth)-90-18; // moins nom et btn
+    const nD=G.showWE?7:5;
+    CW=Math.floor(availW/(nD*2));
+    document.documentElement.style.setProperty('--CW',CW+'px');
+  }
   document.getElementById('wnum').textContent=`Sem. ${isoW(dd[0])} / ${dd[0].getFullYear()}`;
   document.getElementById('wdates').textContent=`Lun ${fD(dd[0])} — Ven ${fD(dd[4])}`;
   document.getElementById('bWE').classList.toggle('on',G.showWE);
