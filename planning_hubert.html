@@ -1084,7 +1084,14 @@ function placeAllTags(){
   const ov=document.getElementById('ov');
   const gw=document.getElementById('gw');
   if(!ov||!gw)return;
-  ov.innerHTML='';rCW();
+  ov.innerHTML='';
+
+  // Lire CW depuis une cellule réelle du tableau (fiable quelle que soit la résolution)
+  const refCell=document.querySelector('.ptable td[data-s="0"]');
+  if(refCell){const w=refCell.getBoundingClientRect().width;if(w>1)CW=w;}
+  const refCellH=document.querySelector('.ptable td[data-s]');
+  if(refCellH){const h=refCellH.getBoundingClientRect().height;if(h>1)CH=h;}
+
   const TAG_H=CH-4;
   const TAG_GAP=2;
   const nDays=G.showWE?7:5;
