@@ -293,6 +293,37 @@ col.col-btn{width:20px}
   .hbtns .ibtn{display:none!important}
   #bToday{display:inline-flex!important;padding:5px 8px;font-size:11px}
   #bMenu{display:inline-flex!important;padding:5px 10px;font-size:18px;line-height:1}
+  /* Bottom sheet menu */
+  #mobileMenuOverlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:199;display:none}
+  #mobileMenuOverlay.on{display:block}
+  #mobileMenu{
+    position:fixed;bottom:0;left:0;right:0;
+    background:#1e293b;border-radius:16px 16px 0 0;
+    padding:14px 16px 32px;z-index:200;
+    transform:translateY(100%);transition:transform .28s ease;
+    box-shadow:0 -4px 24px rgba(0,0,0,.35);
+  }
+  #mobileMenu.open{transform:translateY(0)}
+  #mobileMenu .mm-title{
+    text-align:center;color:#64748b;font-size:11px;
+    font-weight:600;text-transform:uppercase;letter-spacing:.8px;
+    margin-bottom:12px;padding-bottom:8px;
+    border-bottom:1px solid #334155;
+  }
+  #mobileMenu .mm-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  #mobileMenu .mm-grid button{
+    background:#334155;border:1px solid #475569;color:#e2e8f0;
+    border-radius:10px;padding:12px 8px;
+    font-size:11px;font-weight:600;font-family:inherit;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;gap:5px;
+  }
+  #mobileMenu .mm-grid button .mm-icon{font-size:22px}
+  #mobileMenu .mm-grid button .mm-label{font-size:10px;color:#94a3b8}
+  #mobileMenu .mm-close{
+    margin-top:10px;background:#0891b2;color:#fff;
+    border:none;border-radius:10px;padding:13px;
+    width:100%;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;
+  }
 }
 @media(min-width:769px){
   #ppToggleFloat{display:none!important}
