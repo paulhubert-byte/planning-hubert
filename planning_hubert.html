@@ -289,10 +289,7 @@ col.col-btn{width:20px}
   }
   header{height:44px}
   .week-dates{display:none}
-  /* Masquer tous les boutons sauf Aujourd'hui et ☰ */
-  .hbtns .ibtn{display:none!important}
-  #bToday{display:inline-flex!important;padding:5px 8px;font-size:11px}
-  #bMenu{display:inline-flex!important;padding:5px 10px;font-size:18px;line-height:1}
+  /* Mobile : masquer boutons secondaires */
   /* Bottom sheet menu */
   #mobileMenuOverlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:199;display:none}
   #mobileMenuOverlay.on{display:block}
@@ -327,7 +324,6 @@ col.col-btn{width:20px}
 }
 @media(min-width:769px){
   #ppToggleFloat{display:none!important}
-  #bMenu{display:none!important}
 }
 .pp-head{
   padding:7px 10px;border-bottom:1px solid var(--bord);
@@ -532,7 +528,7 @@ col.col-btn{width:20px}
     <button class="ibtn" id="bPrint">🖨 Imprimer</button>
     <button class="ibtn" id="bCmd">📋 Cmd</button>
     <button class="ibtn" id="bCfg">⚙</button>
-    <button class="ibtn" id="bMenu">☰</button>
+    <button class="ibtn" id="bMenu" style="display:none;font-size:16px;padding:5px 11px">☰</button>
     <div id="sdot"></div>
   </div>
 </header>
@@ -1729,6 +1725,28 @@ document.getElementById('bCfg').addEventListener('click',()=>document.getElement
 // ── Menu mobile ──────────────────────────────────────
 function openMM(){document.getElementById('mobileMenu').classList.add('open');document.getElementById('mobileMenuOverlay').classList.add('on');}
 function closeMM(){document.getElementById('mobileMenu').classList.remove('open');document.getElementById('mobileMenuOverlay').classList.remove('on');}
+// ── Adaptation mobile via JS (plus fiable que CSS media query Safari) ──
+function applyMobileLayout(){
+  const isMobile = window.innerWidth <= 900;
+  const btnsToHide = ['bUndo','bAddC','bAbs','bCopy','bWE','bPrint','bCmd','bCfg'];
+  const bMenu = document.getElementById('bMenu');
+  if(isMobile){
+    btnsToHide.forEach(id=>{
+      const el=document.getElementById(id);
+      if(el)el.style.display='none';
+    });
+    if(bMenu)bMenu.style.display='inline-flex';
+  } else {
+    btnsToHide.forEach(id=>{
+      const el=document.getElementById(id);
+      if(el)el.style.display='';
+    });
+    if(bMenu)bMenu.style.display='none';
+  }
+}
+applyMobileLayout();
+window.addEventListener('resize',applyMobileLayout);
+
 document.getElementById('bMenu').addEventListener('click',openMM);
 document.getElementById('mm-close').addEventListener('click',closeMM);
 document.getElementById('mobileMenuOverlay').addEventListener('click',closeMM);
