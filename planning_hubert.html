@@ -291,6 +291,7 @@ col.col-btn{width:20px}
 }
 @media(min-width:769px){
   #ppToggleFloat{display:none}
+  #bMenu{display:none!important}
 }
 .pp-head{
   padding:7px 10px;border-bottom:1px solid var(--bord);
@@ -495,6 +496,7 @@ col.col-btn{width:20px}
     <button class="ibtn" id="bPrint">🖨 Imprimer</button>
     <button class="ibtn" id="bCmd">📋 Cmd</button>
     <button class="ibtn" id="bCfg">⚙</button>
+    <button class="ibtn" id="bMenu" style="font-size:16px;padding:5px 9px">☰</button>
     <div id="sdot"></div>
   </div>
 </header>
@@ -733,6 +735,21 @@ function fbConnect(){
   try{
     const db=firebase.database();
     _fbRef=db.ref('hub7');
+    // Migration hub6→hub7 : si hub7 vide, lire hub6
+    _fbRef.once('value',snap=>{
+      if(!snap.val()){
+        console.log('[FB] hub7 vide — migration depuis hub6...');
+        db.ref('hub6').once('value',snap6=>{
+          if(snap6.val()){
+            console.log('[FB] Données hub6 trouvées — migration');
+            _fbRef.set(snap6.val(),err=>{
+              if(!err)console.log('[FB] Migration hub6→hub7 OK');
+            });
+          }
+        });
+      }
+    });
+    // Écoute temps réel
     _fbRef.on('value',snap=>{
       if(_isPushing)return;
       const raw=snap.val();if(!raw){dot('ok');return;}
@@ -828,7 +845,19 @@ const save=()=>{
   clearTimeout(_fbDT);
   _fbDT=setTimeout(()=>{try{fbPush(JSON.parse(JSON.stringify(G)));}catch(e){}},800);
 };
-const load=()=>{try{const s=localStorage.getItem('hub7');if(s)Object.assign(G,JSON.parse(s));}catch(e){}};
+const load=()=>{
+  // Essayer hub7 d'abord, puis hub6 si hub7 absent
+  try{
+    const s7=localStorage.getItem('hub7');
+    if(s7){Object.assign(G,JSON.parse(s7));return;}
+    const s6=localStorage.getItem('hub6');
+    if(s6){
+      Object.assign(G,JSON.parse(s6));
+      console.log('Migration localStorage hub6→hub7');
+      localStorage.setItem('hub7',s6);
+    }
+  }catch(e){}
+};
 
 // ═══════════════════════════════════════════════════════
 // HELPERS SEMAINE
