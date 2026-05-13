@@ -288,14 +288,15 @@ col.col-btn{width:20px}
     box-shadow:0 4px 12px rgba(79,116,227,.4);
   }
   header{height:44px}
-  .hbtns .ibtn{padding:4px 7px;font-size:10px}
   .week-dates{display:none}
+  /* Masquer tous les boutons sauf Aujourd'hui et ☰ */
+  .hbtns .ibtn{display:none!important}
+  #bToday{display:inline-flex!important;padding:5px 8px;font-size:11px}
+  #bMenu{display:inline-flex!important;padding:5px 10px;font-size:18px;line-height:1}
 }
 @media(min-width:769px){
-  #ppToggleFloat{display:none}
-  /* Desktop : bMenu masqué, tous les boutons visibles */
+  #ppToggleFloat{display:none!important}
   #bMenu{display:none!important}
-  .hbtns .ibtn{display:inline-flex!important}
 }
 .pp-head{
   padding:7px 10px;border-bottom:1px solid var(--bord);
