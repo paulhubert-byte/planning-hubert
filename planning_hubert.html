@@ -470,6 +470,7 @@ col.col-btn{width:20px}
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-auth-compat.js"></script>
 
 <header>
   <div class="logo-wrap">
@@ -713,17 +714,32 @@ function fbInit(){
   try{
     if(typeof firebase==='undefined'){dot('err');return;}
     if(!firebase.apps.length)firebase.initializeApp(FB_CFG);
+    // Connexion anonyme — requise par les règles de sécurité
+    firebase.auth().signInAnonymously()
+      .then(()=>{
+        console.log('[FB] Auth anonyme OK');
+        fbConnect();
+      })
+      .catch(e=>{
+        console.warn('[FB] Auth error:',e);
+        dot('err');
+        // Essayer quand même (mode dégradé)
+        fbConnect();
+      });
+  }catch(e){dot('err');console.warn(e);}
+}
+
+function fbConnect(){
+  try{
     const db=firebase.database();
-    _fbRef=db.ref('hub7'); // nouvelle clé pour repartir propre
+    _fbRef=db.ref('hub7');
     _fbRef.on('value',snap=>{
       if(_isPushing)return;
       const raw=snap.val();if(!raw){dot('ok');return;}
       const rem=fbDec(raw);
-      // Merge : garder les workers locaux si Firebase n'en a pas
       const keepW=G.workers&&G.workers.length?G.workers:null;
       Object.assign(G,rem);
       if(keepW&&(!G.workers||!G.workers.length))G.workers=keepW;
-      // Migrations
       if(!G.absences)G.absences=[];
       if(!G.commandes)G.commandes=[];
       if(!G.chantierArchive)G.chantierArchive=[];
