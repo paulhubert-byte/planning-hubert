@@ -291,7 +291,9 @@ col.col-btn{width:20px}
 }
 @media(min-width:769px){
   #ppToggleFloat{display:none}
+  /* Desktop : bMenu masqué, tous les boutons visibles */
   #bMenu{display:none!important}
+  .hbtns .ibtn{display:inline-flex!important}
 }
 .pp-head{
   padding:7px 10px;border-bottom:1px solid var(--bord);
@@ -496,7 +498,7 @@ col.col-btn{width:20px}
     <button class="ibtn" id="bPrint">🖨 Imprimer</button>
     <button class="ibtn" id="bCmd">📋 Cmd</button>
     <button class="ibtn" id="bCfg">⚙</button>
-    <button class="ibtn" id="bMenu" style="font-size:16px;padding:5px 9px">☰</button>
+    <button class="ibtn" id="bMenu">☰</button>
     <div id="sdot"></div>
   </div>
 </header>
